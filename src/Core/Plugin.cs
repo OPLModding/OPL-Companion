@@ -10,7 +10,7 @@ namespace OPLServerBanners;
 public sealed class Plugin : IPuckPlugin
 {
     public const string ModName = "OPLServerBanners";
-    public const string ModVersion = "1.0.0";
+    public const string ModVersion = "1.1.0";
     public const string ModGuid = "doma.oplserverbanners";
 
     private static readonly Harmony Harmony = new(ModGuid);
@@ -174,6 +174,7 @@ public sealed class Plugin : IPuckPlugin
     private static void ApplyServerPatches()
     {
         GoaliePracticeMenuHotkeys.ApplyServerPatches(Harmony);
+        GoalieSpeedCapPatches.ApplyPatches(Harmony);
 #if TROPHY_COMMANDS
         TrophyServer.ApplyPatches(Harmony);
 #endif
@@ -182,6 +183,7 @@ public sealed class Plugin : IPuckPlugin
     private static void ApplyClientPatches()
     {
         GoaliePracticeMenuHotkeys.ApplyClientPatches(Harmony);
+        GoalieSpeedCapPatches.ApplyPatches(Harmony);
         SettingsPresetPatches.ApplyPatches(Harmony);
         GoalieWarmupPuckTracking.ApplyPatches(Harmony);
         LoadOrder.ApplyPatches(Harmony);

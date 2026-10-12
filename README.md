@@ -29,6 +29,17 @@ dotnet build OPLServerBanners.csproj -c TrophyCommands
 
 The project copies the DLL and `assets/trophies/s4_trophies` bundle to the configured Puck client and dedicated-server plugin folders. Those absolute destinations are defined in `OPLServerBanners.csproj`; update them for a different Puck installation.
 
+The integrated goalie speed cap is configured in `serverconfig.json`:
+
+```json
+"goalieSpeedCap": {
+  "enabled": true,
+  "maxSpeed": 6.0
+}
+```
+
+The patch is applied on both the dedicated server and client. Remove the standalone `GoalieSpeedCap.dll` before enabling this integrated version so the movement and dash methods are not patched twice.
+
 ## Install
 
 Place these files in `Puck/Plugins/OPLServerBanners/` on both the client and dedicated server:

@@ -1,6 +1,10 @@
 {
   "requireWorkshopModForClients": true,
   "competitiveSkatingAdminPanelEnabled": true,
+  "goalieSpeedCap": {
+    "enabled": true,
+    "maxSpeed": 6.0
+  },
   "servers": [
     {
       "enabled": true,

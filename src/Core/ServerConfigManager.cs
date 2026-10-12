@@ -20,6 +20,9 @@ public sealed class ServerBannerConfig
     [JsonPropertyName("applySkatingConfigOnStartup")]
     public bool? ApplySkatingConfigOnStartup { get; set; }
 
+    [JsonPropertyName("goalieSpeedCap")]
+    public GoalieSpeedCapSettings GoalieSpeedCap { get; set; } = new();
+
     [JsonPropertyName("servers")]
     public List<ServerBannerEntry> Servers { get; set; } = new();
 }
@@ -51,6 +54,7 @@ public static class ServerConfigManager
     private static bool? _legacyApplySkatingConfigOnStartup;
     private static bool _requireWorkshopModForClients = true;
     private static bool _competitiveSkatingAdminPanelEnabled = true;
+    private static GoalieSpeedCapSettings _goalieSpeedCap = new();
 
     public static bool? LegacyApplySkatingConfigOnStartup
     {
@@ -91,6 +95,19 @@ public static class ServerConfigManager
         }
     }
 
+    public static GoalieSpeedCapSettings GoalieSpeedCap
+    {
+        get
+        {
+            if (!_loaded)
+            {
+                Load();
+            }
+
+            return _goalieSpeedCap;
+        }
+    }
+
     public static void Load()
     {
         var configPath = GetConfigPath();
@@ -100,6 +117,7 @@ public static class ServerConfigManager
         _requireWorkshopModForClients = config.RequireWorkshopModForClients;
         _competitiveSkatingAdminPanelEnabled = config.CompetitiveSkatingAdminPanelEnabled;
         _legacyApplySkatingConfigOnStartup = config.ApplySkatingConfigOnStartup;
+        _goalieSpeedCap = config.GoalieSpeedCap ?? new GoalieSpeedCapSettings();
         foreach (var entry in config.Servers)
         {
             if (!entry.Enabled || string.IsNullOrWhiteSpace(entry.Endpoint))
@@ -113,6 +131,7 @@ public static class ServerConfigManager
 
         _loaded = true;
         Plugin.Log($"Loaded banner config for {EntriesByEndpoint.Count} servers from {configPath}.");
+        Plugin.Log($"Goalie speed cap: {(_goalieSpeedCap.Enabled ? "enabled" : "disabled")}, max speed {_goalieSpeedCap.MaxSpeed:0.###}.");
     }
 
     public static bool TryGetEntry(EndPoint endPoint, out ServerBannerEntry entry)
