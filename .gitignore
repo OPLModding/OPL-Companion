@@ -18,6 +18,7 @@ _puck_*.cs
 
 # Only the production trophy bundle is distributed with this repository.
 Assets/WarmupObstacles/
+/WarmupObstacle*.cs
 
 # Unity project artefacts are intentionally not included.
 [Ll]ibrary/

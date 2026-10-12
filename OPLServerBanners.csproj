@@ -27,10 +27,7 @@
     <Compile Remove="_decompiled_toasters\**" />
     <Compile Remove="_puck_decompiled_input_temp\**" />
     <Compile Remove="_puck_*.cs" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(EnableWarmupObstacles)' != 'true'">
-    <Compile Remove="WarmupObstacle*.cs" />
+    <Compile Remove="**\WarmupObstacle*.cs" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(EnableTrophyCommands)' != 'true'">
@@ -38,10 +35,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="serverconfig.json">
+    <None Include="config\serverconfig.json">
+      <Link>serverconfig.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="MessageBoard\**\*">
+    <None Include="config\message-board\**\*">
+      <Link>MessageBoard\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -53,7 +52,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(EnableTrophyCommands)' == 'true'">
-    <None Include="Assets\Trophies\**\*">
+    <None Include="assets\trophies\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -84,7 +83,7 @@
       <WarmupObstacleAssetFiles Include="Assets\WarmupObstacles\**\*" />
     </ItemGroup>
     <ItemGroup Condition="'$(EnableTrophyCommands)' == 'true'">
-      <TrophyAssetFiles Include="Assets\Trophies\**\*" />
+      <TrophyAssetFiles Include="assets\trophies\**\*" />
     </ItemGroup>
 
     <MakeDir Directories="$(ClientPluginDir)" />

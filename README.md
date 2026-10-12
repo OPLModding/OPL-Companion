@@ -27,7 +27,7 @@ Build the production configuration:
 dotnet build OPLServerBanners.csproj -c TrophyCommands
 ```
 
-The project copies the DLL and `Assets/Trophies/s4_trophies` bundle to the configured Puck client and dedicated-server plugin folders. Those absolute destinations are defined in `OPLServerBanners.csproj`; update them for a different Puck installation.
+The project copies the DLL and `assets/trophies/s4_trophies` bundle to the configured Puck client and dedicated-server plugin folders. Those absolute destinations are defined in `OPLServerBanners.csproj`; update them for a different Puck installation.
 
 ## Install
 
@@ -43,4 +43,17 @@ Restart Puck/the dedicated server after updating the plugin. Live servers using 
 
 ## Assets
 
-This repository contains only the built `s4_trophies` AssetBundle needed at runtime. Trophy FBX files, the Unity authoring project, and legacy warmup-obstacle bundles are intentionally excluded.
+This repository contains only the built `assets/trophies/s4_trophies` AssetBundle needed at runtime. Trophy FBX files, the Unity authoring project, and legacy warmup-obstacle source and bundles are intentionally excluded.
+
+## Repository layout
+
+```text
+src/Core/             Plugin bootstrap and shared server helpers
+src/Compatibility/    Optional third-party mod compatibility
+src/Features/         Source grouped by OPL Companion feature
+assets/trophies/      Runtime trophy AssetBundle
+config/               Default server and message-board configuration
+docs/                 Feature documentation and reference material
+examples/             Configuration examples
+tools/                Maintainer utilities
+```
