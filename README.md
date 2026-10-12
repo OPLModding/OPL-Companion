@@ -34,7 +34,7 @@ The integrated goalie speed cap is configured in `serverconfig.json`:
 ```json
 "goalieSpeedCap": {
   "enabled": true,
-  "maxSpeed": 6.0
+  "maxSpeed": 9.25
 }
 ```
 

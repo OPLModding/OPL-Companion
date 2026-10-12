@@ -9,7 +9,7 @@ public sealed class GoalieSpeedCapSettings
     public bool Enabled { get; set; } = true;
 
     [JsonPropertyName("maxSpeed")]
-    public float MaxSpeed { get; set; } = 6f;
+    public float MaxSpeed { get; set; } = 9.25f;
 }
 
 internal static class GoalieSpeedCapRuntime
