@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OPLServerBanners", "OPLServerBanners.csproj", "{9BEEEF09-9913-F7F0-76C9-C85FA0F7677B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_decompiled_toasters", "_decompiled_toasters", "{EEE767EA-BBD3-9D7A-F4C1-9676B0F6C761}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToastersRinkCompanion", "_decompiled_toasters\ToastersRinkCompanion.csproj", "{34CF4809-FE16-9C25-B06F-E14D89CA87D4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9BEEEF09-9913-F7F0-76C9-C85FA0F7677B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9BEEEF09-9913-F7F0-76C9-C85FA0F7677B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9BEEEF09-9913-F7F0-76C9-C85FA0F7677B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9BEEEF09-9913-F7F0-76C9-C85FA0F7677B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34CF4809-FE16-9C25-B06F-E14D89CA87D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34CF4809-FE16-9C25-B06F-E14D89CA87D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34CF4809-FE16-9C25-B06F-E14D89CA87D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34CF4809-FE16-9C25-B06F-E14D89CA87D4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{34CF4809-FE16-9C25-B06F-E14D89CA87D4} = {EEE767EA-BBD3-9D7A-F4C1-9676B0F6C761}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7845CB44-F918-4911-89EB-876D662CC587}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "showOnJoin": true,
+  "openDelayMs": 750,
+  "title": "OPL Companion Message Board Example",
+  "subtitle": "Every supported block type with current tone options",
+  "footerNote": "Press F11 to reopen. Copy only what you want into MessageBoard/board.json.",
+  "tabs": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Welcome to the all-elements example"
+        },
+        {
+          "type": "paragraph",
+          "text": "Defaults: headings are blue if no tone is set. Standard body text uses the built-in light text. List and button titles default to white."
+        },
+        {
+          "type": "paragraph",
+          "tone": "success",
+          "text": "This paragraph uses tone."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "info",
+          "titleTone": "warning",
+          "textTone": "neutral",
+          "title": "Box With Overrides",
+          "text": "tone sets the card. titleTone and textTone override the text colors.",
+          "blocks": [
+            {
+              "type": "bulletList",
+              "tone": "info",
+              "items": [
+                "Announcement boxes can now include nested blocks.",
+                "Bullet lists work inside the box."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "paragraph",
+          "textTone": "warning",
+          "text": "This paragraph uses textTone instead of tone."
+        },
+        {
+          "type": "spacer",
+          "height": 18
+        },
+        {
+          "type": "paragraph",
+          "text": "Spacer added the gap above. Divider and spacer ignore tone fields."
+        }
+      ]
+    },
+    {
+      "id": "tones",
+      "label": "Tones",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Named tones and hex colors",
+          "tone": "info"
+        },
+        {
+          "type": "announcementBox",
+          "tone": "info",
+          "title": "Info",
+          "text": "Use info for general notes, updates, or standard guidance."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "success",
+          "title": "Success",
+          "text": "Use success for confirmations and positive notices."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "warning",
+          "title": "Warning",
+          "text": "Use warning for restrictions or maintenance notes."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "error",
+          "title": "Error",
+          "text": "Use error for urgent problems or outages."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "neutral",
+          "title": "Neutral",
+          "text": "Use neutral for side notes or lower-priority context."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "#7C9CFF",
+          "titleTone": "warning",
+          "title": "Hex Color Example",
+          "text": "Hex colors work anywhere tone is supported."
+        }
+      ]
+    },
+    {
+      "id": "lists",
+      "label": "Lists",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "List-based content",
+          "tone": "info"
+        },
+        {
+          "type": "paragraph",
+          "text": "The checklist below uses overrides. The rules block below it uses the normal defaults."
+        },
+        {
+          "type": "paragraph",
+          "tone": "info",
+          "text": "This paragraph shows tone."
+        },
+        {
+          "type": "paragraph",
+          "textTone": "warning",
+          "text": "This paragraph shows textTone."
+        },
+        {
+          "type": "bulletList",
+          "title": "Checklist",
+          "tone": "success",
+          "titleTone": "info",
+          "textTone": "warning",
+          "items": [
+            "tone colors the bullet markers.",
+            "titleTone can override the list title.",
+            "textTone can override the item text."
+          ]
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "type": "ruleList",
+          "title": "Rules Using Defaults",
+          "ruleItems": [
+            {
+              "title": "Respect",
+              "text": "Treat players and admins well."
+            },
+            {
+              "title": "Sportsmanship",
+              "text": "Do not grief or disrupt sessions."
+            },
+            {
+              "title": "Competitive Integrity",
+              "text": "No cheats or unfair exploits."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "links",
+      "label": "Links",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Action buttons",
+          "tone": "neutral"
+        },
+        {
+          "type": "paragraph",
+          "text": "Defaults: row titles are white unless titleTone is set. Buttons inherit the row tone unless a button sets its own tone."
+        },
+        {
+          "type": "paragraph",
+          "tone": "info",
+          "text": "This paragraph shows tone."
+        },
+        {
+          "type": "paragraph",
+          "textTone": "warning",
+          "text": "This paragraph shows textTone."
+        },
+        {
+          "type": "buttonRow",
+          "title": "Community Links",
+          "tone": "info",
+          "titleTone": "neutral",
+          "buttons": [
+            {
+              "label": "Discord",
+              "url": "https://example.com/discord",
+              "backgroundTone": "success",
+              "textTone": "#FFFFFF"
+            },
+            {
+              "label": "Rules",
+              "url": "https://example.com/rules",
+              "tone": "warning"
+            },
+            {
+              "label": "Stats",
+              "url": "https://example.com/stats",
+              "tone": "success"
+            },
+            {
+              "label": "Schedule",
+              "url": "https://example.com/schedule",
+              "backgroundTone": "#4DB6FF",
+              "textTone": "#081018"
+            }
+          ]
+        },
+        {
+          "type": "announcementBox",
+          "tone": "neutral",
+          "titleTone": "info",
+          "textTone": "neutral",
+          "title": "Link Styling Notes",
+          "text": "buttonRow uses row tone, titleTone, and per-button button tones. Buttons can also set backgroundTone and textTone."
+        }
+      ]
+    },
+    {
+      "id": "sections",
+      "label": "Sections",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Collapsible sections",
+          "tone": "info"
+        },
+        {
+          "type": "paragraph",
+          "text": "Sections can contain any supported child blocks."
+        },
+        {
+          "type": "collapsibleSection",
+          "title": "Expanded Example",
+          "tone": "info",
+          "titleTone": "warning",
+          "defaultExpanded": true,
+          "blocks": [
+            {
+              "type": "paragraph",
+              "tone": "success",
+              "text": "Nested blocks use their own tones. Parent tones do not cascade."
+            },
+            {
+              "type": "bulletList",
+              "title": "Nested Checklist",
+              "tone": "warning",
+              "textTone": "neutral",
+              "items": [
+                "Nested bullet lists work normally.",
+                "Nested dividers and spacers also work.",
+                "Great for FAQs or setup notes."
+              ]
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "announcementBox",
+              "tone": "success",
+              "titleTone": "info",
+              "textTone": "neutral",
+              "title": "Nested Callout",
+              "text": "Nested announcement boxes keep their own styling."
+            },
+            {
+              "type": "buttonRow",
+              "title": "Nested Buttons",
+              "tone": "warning",
+              "buttons": [
+                {
+                  "label": "Register",
+                  "url": "https://example.com/register",
+                  "tone": "success"
+                },
+                {
+                  "label": "Appeal",
+                  "url": "https://example.com/appeal",
+                  "tone": "error"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "collapsibleSection",
+          "title": "Empty Section Example",
+          "tone": "error",
+          "titleTone": "warning",
+          "textTone": "neutral",
+          "defaultExpanded": true,
+          "blocks": []
+        }
+      ]
+    }
+  ]
+}

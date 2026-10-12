@@ -1,0 +1,26 @@
+# .NET build output and local IDE state
+[Bb]in/
+[Oo]bj/
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local tooling/cache files
+.claude/
+__pycache__/
+*.py[cod]
+
+# Decompiled/reference material is not part of this project
+_decompiled_toasters/
+_puck_decompiled_input_temp/
+_puck_*.cs
+
+# Only the production trophy bundle is distributed with this repository.
+Assets/WarmupObstacles/
+
+# Unity project artefacts are intentionally not included.
+[Ll]ibrary/
+[Tt]emp/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/

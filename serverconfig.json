@@ -1,0 +1,22 @@
+{
+  "requireWorkshopModForClients": true,
+  "competitiveSkatingAdminPanelEnabled": true,
+  "servers": [
+    {
+      "enabled": true,
+      "endpoint": "139.99.209.165:20004"
+    },
+    {
+      "enabled": true,
+      "endpoint": "139.99.209.165:20002"
+    },
+    {
+      "enabled": true,
+      "endpoint": "139.99.209.165:20006"
+    },
+    {
+      "enabled": true,
+      "endpoint": "139.99.209.165:20000"
+    }
+  ]
+}

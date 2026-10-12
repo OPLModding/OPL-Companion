@@ -1,0 +1,116 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageId>OPLServerBanners</PackageId>
+    <Authors>GWA</Authors>
+    <Company>GWA</Company>
+    <Product>OPLServerBanners</Product>
+    <Configurations>Debug;Release;WarmupObstaclesTest;TrophyCommands</Configurations>
+    <EnableWarmupObstacles Condition="'$(EnableWarmupObstacles)' == ''">false</EnableWarmupObstacles>
+    <EnableTrophyCommands Condition="'$(EnableTrophyCommands)' == ''">false</EnableTrophyCommands>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'WarmupObstaclesTest'">
+    <EnableWarmupObstacles>true</EnableWarmupObstacles>
+    <DefineConstants>$(DefineConstants);WARMUP_OBSTACLES</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'TrophyCommands'">
+    <EnableTrophyCommands>true</EnableTrophyCommands>
+    <DefineConstants>$(DefineConstants);TROPHY_COMMANDS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="_decompiled_toasters\**" />
+    <Compile Remove="_puck_decompiled_input_temp\**" />
+    <Compile Remove="_puck_*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableWarmupObstacles)' != 'true'">
+    <Compile Remove="WarmupObstacle*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableTrophyCommands)' != 'true'">
+    <Compile Remove="Trophy*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="serverconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="MessageBoard\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableWarmupObstacles)' == 'true'">
+    <None Include="Assets\WarmupObstacles\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableTrophyCommands)' == 'true'">
+    <None Include="Assets\Trophies\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Libs Include="..\DomaWaterBottle\libs\*.dll" />
+
+    <Reference Include="@(Libs)">
+      <HintPath>%(Libs.FullPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PreBuildMessage" BeforeTargets="Build">
+    <Message Importance="high" Text="Building $(AssemblyName)..." />
+  </Target>
+
+  <Target Name="PostBuildMessage" AfterTargets="Build">
+    <Message Importance="high" Text="$(AssemblyName) built successfully!" />
+  </Target>
+
+  <Target Name="PostBuildMovePlugin" AfterTargets="Build">
+    <PropertyGroup>
+      <ClientPluginDir>C:\Program Files (x86)\Steam\steamapps\common\Puck\Plugins\OPLServerBanners</ClientPluginDir>
+      <DedicatedServerPluginDir>C:\Program Files (x86)\Steam\steamapps\common\Puck Dedicated Server\Plugins\OPLServerBanners</DedicatedServerPluginDir>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(EnableWarmupObstacles)' == 'true'">
+      <WarmupObstacleAssetFiles Include="Assets\WarmupObstacles\**\*" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(EnableTrophyCommands)' == 'true'">
+      <TrophyAssetFiles Include="Assets\Trophies\**\*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(ClientPluginDir)" />
+    <MakeDir Directories="$(DedicatedServerPluginDir)" />
+    <MakeDir Directories="$(ClientPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' == 'true'" />
+    <MakeDir Directories="$(DedicatedServerPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' == 'true'" />
+    <MakeDir Directories="$(ClientPluginDir)\Assets\Trophies" Condition="'$(EnableTrophyCommands)' == 'true'" />
+    <MakeDir Directories="$(DedicatedServerPluginDir)\Assets\Trophies" Condition="'$(EnableTrophyCommands)' == 'true'" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ClientPluginDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DedicatedServerPluginDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)serverconfig.json" DestinationFolder="$(ClientPluginDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)serverconfig.json" DestinationFolder="$(DedicatedServerPluginDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="@(WarmupObstacleAssetFiles)" DestinationFiles="@(WarmupObstacleAssetFiles->'$(ClientPluginDir)\Assets\WarmupObstacles\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableWarmupObstacles)' == 'true'" />
+    <Copy SourceFiles="@(WarmupObstacleAssetFiles)" DestinationFiles="@(WarmupObstacleAssetFiles->'$(DedicatedServerPluginDir)\Assets\WarmupObstacles\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableWarmupObstacles)' == 'true'" />
+    <Copy SourceFiles="@(TrophyAssetFiles)" DestinationFiles="@(TrophyAssetFiles->'$(ClientPluginDir)\Assets\Trophies\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableTrophyCommands)' == 'true'" />
+    <Copy SourceFiles="@(TrophyAssetFiles)" DestinationFiles="@(TrophyAssetFiles->'$(DedicatedServerPluginDir)\Assets\Trophies\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableTrophyCommands)' == 'true'" />
+    <RemoveDir Directories="$(OutputPath)Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' != 'true'" />
+    <RemoveDir Directories="$(ClientPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' != 'true'" />
+    <RemoveDir Directories="$(DedicatedServerPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' != 'true'" />
+    <RemoveDir Directories="$(OutputPath)Assets\Trophies" Condition="'$(EnableTrophyCommands)' != 'true'" />
+    <RemoveDir Directories="$(ClientPluginDir)\Assets\Trophies" Condition="'$(EnableTrophyCommands)' != 'true'" />
+    <RemoveDir Directories="$(DedicatedServerPluginDir)\Assets\Trophies" Condition="'$(EnableTrophyCommands)' != 'true'" />
+
+    <Message Importance="high" Text="Copied $(AssemblyName).dll and serverconfig.json to: $(ClientPluginDir) and $(DedicatedServerPluginDir)" Condition="'$(EnableWarmupObstacles)' != 'true'" />
+    <Message Importance="high" Text="Copied $(AssemblyName).dll, serverconfig.json, and warmup obstacle assets to: $(ClientPluginDir) and $(DedicatedServerPluginDir)" Condition="'$(EnableWarmupObstacles)' == 'true'" />
+    <Message Importance="high" Text="Copied $(AssemblyName).dll, serverconfig.json, and trophy assets to: $(ClientPluginDir) and $(DedicatedServerPluginDir)" Condition="'$(EnableTrophyCommands)' == 'true'" />
+  </Target>
+
+</Project>

@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "showOnJoin": true,
+  "openDelayMs": 500,
+  "title": "Welcome to OPL",
+  "subtitle": "Server info, announcements, and quick links",
+  "footerNote": "Edit MessageBoard/board.json on the server to change this dashboard.",
+  "tabs": [
+    {
+      "id": "about",
+      "label": "About",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Welcome"
+        },
+        {
+          "type": "paragraph",
+          "text": "This dashboard opens automatically when players join and can be reopened any time with F11."
+        },
+        {
+          "type": "announcementBox",
+          "tone": "info",
+          "title": "Server Notice",
+          "text": "Use this area for league updates, special event callouts, or anything you want everyone to see right away."
+        },
+        {
+          "type": "collapsibleSection",
+          "title": "What belongs here?",
+          "tone": "neutral",
+          "defaultExpanded": true,
+          "blocks": [
+            {
+              "type": "bulletList",
+              "items": [
+                "League or community overview",
+                "How players should use the server",
+                "Where to find rules, Discord, or schedules"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rules",
+      "label": "Rules",
+      "blocks": [
+        {
+          "type": "announcementBox",
+          "tone": "warning",
+          "title": "Keep it fun",
+          "text": "Put your most important conduct note here so it is hard to miss."
+        },
+        {
+          "type": "ruleList",
+          "ruleItems": [
+            {
+              "title": "Respect",
+              "text": "Treat everyone well and keep chat readable."
+            },
+            {
+              "title": "Sportsmanship",
+              "text": "Avoid griefing, crease harassment, and deliberate disruption."
+            },
+            {
+              "title": "Cheating",
+              "text": "No exploits, hacks, or anything that gives an unfair advantage."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "links",
+      "label": "Links",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "Add buttons here for your community links."
+        },
+        {
+          "type": "buttonRow",
+          "buttons": [
+            {
+              "label": "Discord",
+              "url": "https://example.com/discord"
+            },
+            {
+              "label": "Rules",
+              "url": "https://example.com/rules"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opl",
+      "label": "OPL",
+      "blocks": [
+        {
+          "type": "heading",
+          "text": "Rookie Showcase Event"
+        },
+        {
+          "type": "announcementBox",
+          "tone": "info",
+          "title": "Locked in for 28 June",
+          "text": "A Rookie Showcase is set for 28 June, giving newer players a competitive event against others at a similar level while also putting them in front of league members and team staff."
+        },
+        {
+          "type": "paragraph",
+          "text": "The event is designed to help rookies and newer players show what they can do, while also helping assess whether a Division 2 league is viable."
+        },
+        {
+          "type": "bulletList",
+          "title": "How it works",
+          "tone": "info",
+          "items": [
+            "Accepted applicants will be placed into a draft pool.",
+            "Coaches will build teams through a snake draft.",
+            "Teams will then play in a round robin tournament."
+          ]
+        },
+        {
+          "type": "bulletList",
+          "title": "Eligibility",
+          "tone": "warning",
+          "items": [
+            "Players should have fewer than 5 games in a single league season or fewer than 10 league games in total.",
+            "Exceptions can be considered for players who are only slightly outside the guidelines.",
+            "If you think an exception applies to you, include that in your application."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "If you're interested in joining as a Coach or Mentor, you should fill out the same form as well."
+        },
+        {
+          "type": "buttonRow",
+          "title": "Register",
+          "tone": "success",
+          "buttons": [
+            {
+              "label": "Sign-Up",
+              "url": "https://docs.google.com/forms/d/e/1FAIpQLSem0970l7vh1i2t_Mq4z-onJsitzRzhLT8wjGKuLRtfHqL8BQ/viewform",
+              "backgroundTone": "success",
+              "textTone": "#FFFFFF"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
