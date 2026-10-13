@@ -8,6 +8,7 @@ internal static class GoalieSpeedCapPatches
     public static void ApplyPatches(Harmony harmony)
     {
         harmony.CreateClassProcessor(typeof(MovementFixedUpdatePatch)).Patch();
+        harmony.CreateClassProcessor(typeof(PlayerBodyFixedUpdatePatch)).Patch();
         harmony.CreateClassProcessor(typeof(GoalieDashLeftPatch)).Patch();
         harmony.CreateClassProcessor(typeof(GoalieDashRightPatch)).Patch();
     }
@@ -18,13 +19,17 @@ internal static class GoalieSpeedCapPatches
         [HarmonyPostfix]
         private static void Postfix(Movement __instance)
         {
-            if (!GoalieSpeedCapRuntime.Applies(__instance.PlayerBody))
-            {
-                return;
-            }
+            GoalieSpeedCapRuntime.ClampBody(__instance.PlayerBody);
+        }
+    }
 
-            __instance.Rigidbody.linearVelocity =
-                GoalieSpeedCapRuntime.ClampHorizontal(__instance.Rigidbody.linearVelocity);
+    [HarmonyPatch(typeof(PlayerBody), "FixedUpdate")]
+    private static class PlayerBodyFixedUpdatePatch
+    {
+        [HarmonyPostfix]
+        private static void Postfix(PlayerBody __instance)
+        {
+            GoalieSpeedCapRuntime.ClampBody(__instance);
         }
     }
 

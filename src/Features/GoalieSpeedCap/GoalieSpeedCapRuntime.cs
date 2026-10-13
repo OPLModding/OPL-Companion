@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace OPLServerBanners;
@@ -47,6 +48,21 @@ internal static class GoalieSpeedCapRuntime
         return new Vector3(horizontal.x, velocity.y, horizontal.z);
     }
 
+    public static void ClampBody(PlayerBody body)
+    {
+        if (!Applies(body))
+        {
+            return;
+        }
+
+        body.Rigidbody.linearVelocity = ClampHorizontal(body.Rigidbody.linearVelocity);
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer && body.Movement != null)
+        {
+            body.Speed.Value = body.Movement.Speed;
+        }
+    }
+
     public static void CompensateDash(PlayerBody body, float staminaBefore, Vector3 direction)
     {
         if (body.Stamina.Value >= staminaBefore || !Applies(body))
@@ -56,6 +72,7 @@ internal static class GoalieSpeedCapRuntime
 
         Vector3 dashVelocity = direction * DashVelocity.Invoke(body);
         Vector3 velocityBeforeDash = body.Rigidbody.linearVelocity + dashVelocity;
-        body.Rigidbody.linearVelocity = ClampHorizontal(velocityBeforeDash) - dashVelocity;
+        Vector3 compensatedVelocity = ClampHorizontal(velocityBeforeDash) - dashVelocity;
+        body.Rigidbody.linearVelocity = ClampHorizontal(compensatedVelocity);
     }
 }
