@@ -32,13 +32,14 @@ The project copies the DLL and `assets/trophies/s4_trophies` bundle to the confi
 The integrated goalie speed cap is configured in `serverconfig.json`:
 
 ```json
+"configVersion": 2,
 "goalieSpeedCap": {
   "enabled": true,
   "maxSpeed": 9.25
 }
 ```
 
-The patch is applied on both the dedicated server and client. Remove the standalone `GoalieSpeedCap.dll` before enabling this integrated version so the movement and dash methods are not patched twice.
+When an older `serverconfig.json` is loaded, OPL upgrades it in place by adding only missing settings and preserving existing values and unknown properties. The patch is applied on both the dedicated server and client. Remove the standalone `GoalieSpeedCap.dll` before enabling this integrated version so the movement and dash methods are not patched twice.
 
 ## Install
 
