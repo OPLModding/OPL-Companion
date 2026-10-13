@@ -11,6 +11,7 @@
     <Configurations>Debug;Release;WarmupObstaclesTest;TrophyCommands</Configurations>
     <EnableWarmupObstacles Condition="'$(EnableWarmupObstacles)' == ''">false</EnableWarmupObstacles>
     <EnableTrophyCommands Condition="'$(EnableTrophyCommands)' == ''">false</EnableTrophyCommands>
+    <PuckInstallDir Condition="'$(PuckInstallDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Puck</PuckInstallDir>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'WarmupObstaclesTest'">
@@ -58,10 +59,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Libs Include="..\DomaWaterBottle\libs\*.dll" />
+    <Libs Include="..\DomaWaterBottle\libs\*.dll" Exclude="..\DomaWaterBottle\libs\Puck.dll" />
 
     <Reference Include="@(Libs)">
       <HintPath>%(Libs.FullPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="Puck">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\Puck.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
