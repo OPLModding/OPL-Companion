@@ -2435,6 +2435,8 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
     private Light[] _nativeFloodlights;
     private float[] _baseIntensities;
     private float[] _lastAppliedIntensities;
+    private bool[] _lastAppliedEnabled;
+    private Color[] _lastAppliedColours;
     private float _multiplier;
     private float _maximum;
     private float _fallbackBaseIntensity;
@@ -2443,6 +2445,11 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
     private GameObject _arenaRoot;
     private float _nextStatePoll;
     private bool _disabledStateApplied;
+    private bool _externalRuntimeControlObserved;
+    private bool _externalRuntimeLightsOn;
+    private float _externalRuntimeIntensity;
+    private Color _externalRuntimeColour = Color.white;
+    private bool _externalControlLogged;
 
     public void Initialize(Light[] lights, float multiplier, float maximum, Light[] nativeFloodlights, float fallbackBaseIntensity, GameObject arenaRoot)
     {
@@ -2454,14 +2461,19 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
         _arenaRoot = arenaRoot;
         _baseIntensities = new float[lights.Length];
         _lastAppliedIntensities = new float[lights.Length];
+        _lastAppliedEnabled = new bool[lights.Length];
+        _lastAppliedColours = new Color[lights.Length];
         for (int i = 0; i < lights.Length; i++)
         {
-            _baseIntensities[i] = lights[i] == null ? 0f : lights[i].intensity;
+            float actualIntensity = lights[i] == null ? 0f : lights[i].intensity;
+            _baseIntensities[i] = actualIntensity;
             if (_baseIntensities[i] <= 0f && (_nativeFloodlights == null || _nativeFloodlights.Length == 0))
             {
                 _baseIntensities[i] = _fallbackBaseIntensity;
             }
-            _lastAppliedIntensities[i] = _baseIntensities[i];
+            _lastAppliedIntensities[i] = actualIntensity;
+            _lastAppliedEnabled[i] = lights[i] != null && lights[i].enabled;
+            _lastAppliedColours[i] = lights[i] == null ? Color.white : lights[i].color;
         }
     }
 
@@ -2533,6 +2545,9 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
                 {
                     _lights[i].intensity = 0f;
                     _lights[i].enabled = false;
+                    _lastAppliedIntensities[i] = 0f;
+                    _lastAppliedEnabled[i] = false;
+                    _lastAppliedColours[i] = _lights[i].color;
                 }
             }
             _disabledStateApplied = true;
@@ -2563,17 +2578,68 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             }
         }
 
+        if (!nativeLightsAvailable)
+        {
+            bool runtimeStateChangedExternally = false;
+            bool observedOn = false;
+            float observedIntensity = 0f;
+            Color observedColour = _externalRuntimeColour;
+            for (int i = 0; i < _lights.Length; i++)
+            {
+                Light runtimeLight = _lights[i];
+                if (runtimeLight == null)
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(runtimeLight.intensity - _lastAppliedIntensities[i]) > 0.01f ||
+                    runtimeLight.enabled != _lastAppliedEnabled[i] ||
+                    !Approximately(runtimeLight.color, _lastAppliedColours[i]))
+                {
+                    runtimeStateChangedExternally = true;
+                }
+
+                observedColour = runtimeLight.color;
+                if (runtimeLight.enabled && runtimeLight.intensity > 0.01f)
+                {
+                    observedOn = true;
+                    if (runtimeLight.intensity > observedIntensity)
+                    {
+                        observedIntensity = runtimeLight.intensity;
+                        observedColour = runtimeLight.color;
+                    }
+                }
+            }
+
+            if (runtimeStateChangedExternally)
+            {
+                _externalRuntimeControlObserved = true;
+                _externalRuntimeLightsOn = observedOn;
+                _externalRuntimeIntensity = observedIntensity;
+                _externalRuntimeColour = observedColour;
+                if (!_externalControlLogged)
+                {
+                    Debug.Log("[SydneyTLANArena] TLAN is controlling the Companion runtime floodlights directly; native intensity, colour, and on/off state now take priority over the independent fallback.");
+                    _externalControlLogged = true;
+                }
+            }
+        }
+
         bool independentStateAvailable = TlanSydneyAdapter.TryGetIndependentFloodlightState(
             _arenaRoot,
             out bool independentLightsOn,
             out float independentIntensity,
             out Color independentColor);
 
-        // Native TLAN lamps remain the preferred source when they are active,
-        // preserving the original appearance. If a TLAN build fails to attach
-        // those lamps, Companion owns the same day/night decision and keeps the
-        // Sydney visuals alive instead of inheriting an uninitialized zero.
-        if (!nativeLightsOn && independentStateAvailable)
+        if (!nativeLightsAvailable && _externalRuntimeControlObserved)
+        {
+            nativeLightsOn = _externalRuntimeLightsOn;
+            nativeIntensity = _externalRuntimeIntensity;
+            nativeColor = _externalRuntimeColour;
+        }
+        // If neither authored Sydney lights nor direct TLAN writes are
+        // available, Companion owns the equivalent day/night decision.
+        else if (!nativeLightsAvailable && independentStateAvailable)
         {
             nativeLightsOn = independentLightsOn;
             nativeIntensity = independentLightsOn ? independentIntensity : 0f;
@@ -2588,7 +2654,7 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
                 continue;
             }
 
-            if (nativeLightsAvailable || independentStateAvailable)
+            if (nativeLightsAvailable || _externalRuntimeControlObserved || independentStateAvailable)
             {
                 _baseIntensities[i] = nativeLightsOn ? nativeIntensity : 0f;
                 if (!Approximately(light.color, nativeColor))
@@ -2634,6 +2700,8 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
                 light.range = 220f;
             }
             _lastAppliedIntensities[i] = scaledIntensity;
+            _lastAppliedEnabled[i] = shouldBeEnabled;
+            _lastAppliedColours[i] = light.color;
         }
     }
 
@@ -3310,6 +3378,15 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
             return;
         }
 
+        if (_activeController != null && !ReferenceEquals(_activeController, this))
+        {
+            SydneyGoalSirenController previousController = _activeController;
+            previousController.enabled = false;
+            previousController.Release();
+            UnityEngine.Object.Destroy(previousController);
+            Debug.Log("[SydneyTLANArena] Replaced the previous goal-light controller after TLAN respawned the arena.");
+        }
+
         EventManager.AddEventListener(GoalScoredEvent, OnGoalScored);
         EventManager.AddEventListener(GameStateChangedEvent, OnGameStateChanged);
         EventManager.AddEventListener(ServerChatCommandEvent, OnServerChatCommand);
@@ -3653,6 +3730,11 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
     }
 
     private void OnDestroy()
+    {
+        Release();
+    }
+
+    private void Release()
     {
         if (_subscribed)
         {
