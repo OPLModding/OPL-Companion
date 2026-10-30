@@ -1375,15 +1375,17 @@ internal static class TlanSydneyAdapter
 
             ResolveFloodlightTransforms(arenaRoot, nativeFloodlights, out Vector3[] positions, out Vector3[] directions);
             Texture2D panelCookie = menuPreview ? null : CreateFloodlightCookie();
+            string tlanFloodlightPrefix = GetTlanClientSettingString("FloodlightPrefix", "Floodlight_");
+            string tlanFloodlightChildName = GetTlanClientSettingString("FloodlightChildName", "Spot Light");
             for (int i = 0; !menuPreview && i < positions.Length; i++)
             {
                 Vector3 position = positions[i];
-                GameObject lightRoot = new GameObject("Flood_Lamps_Runtime_" + i);
+                GameObject lightRoot = new GameObject(tlanFloodlightPrefix + i);
                 lightRoot.transform.SetParent(runtimeLights.transform, false);
                 lightRoot.transform.localPosition = position;
                 lightRoot.transform.localRotation = Quaternion.LookRotation(directions[i], Vector3.up);
 
-                GameObject lightObject = new GameObject("Spot Light");
+                GameObject lightObject = new GameObject(tlanFloodlightChildName);
                 lightObject.transform.SetParent(lightRoot.transform, false);
                 Light light = lightObject.AddComponent<Light>();
                 light.type = LightType.Spot;
@@ -1448,11 +1450,28 @@ internal static class TlanSydneyAdapter
             }
 
             Debug.Log("[SydneyTLANArena] Created " + (menuPreview ? "lightweight menu floodlight panels" : "4 runtime floodlights at the Sydney lamp-array positions") +
-                      " (native source candidates=" + nativeFloodlights.Length + ", Companion-owned state fallback enabled).");
+                      " (native source candidates=" + nativeFloodlights.Length + ", TLAN prefix='" + tlanFloodlightPrefix + "', Companion-owned state fallback enabled).");
         }
         catch (Exception ex)
         {
             Debug.LogError("[SydneyTLANArena] Could not create Sydney runtime floodlights: " + ex);
+        }
+    }
+
+    private static string GetTlanClientSettingString(string propertyName, string fallback)
+    {
+        try
+        {
+            Type settingsType = AccessTools.TypeByName("TLANArena.Config.ClientSettings");
+            PropertyInfo property = settingsType == null
+                ? null
+                : AccessTools.Property(settingsType, propertyName);
+            string value = property?.GetValue(null, null) as string;
+            return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+        catch
+        {
+            return fallback;
         }
     }
 
