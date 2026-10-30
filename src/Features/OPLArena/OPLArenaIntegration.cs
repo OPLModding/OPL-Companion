@@ -139,7 +139,11 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
     {
         while (TlanSydneyAdapter.IsOplArenaEnabled() && !TlanSydneyAdapter.PatchInstalled)
         {
-            if (TlanSydneyAdapter.TryInstallPatch())
+            // TypeByName walks loaded assemblies and is surprisingly expensive
+            // before TLAN has even been loaded by Puck's mod manager. The cheap
+            // assembly-name check keeps this background compatibility retry out
+            // of the frame budget until there is something to patch.
+            if (TlanSydneyAdapter.IsTlanAssemblyLoaded() && TlanSydneyAdapter.TryInstallPatch())
             {
                 QueueSceneRefresh();
                 break;
@@ -191,6 +195,21 @@ internal static class TlanSydneyAdapter
     private static float _nextRuntimeSunSearch;
 
     public static bool PatchInstalled => _patchInstalled;
+
+    internal static bool IsTlanAssemblyLoaded()
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        for (int i = 0; i < assemblies.Length; i++)
+        {
+            Assembly assembly = assemblies[i];
+            if (assembly != null && string.Equals(assembly.GetName().Name, "TLANArena", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public static void UpdateMenuPreview()
     {
@@ -1238,6 +1257,13 @@ internal static class TlanSydneyAdapter
             return true;
         }
 
+        // Avoid Harmony/type reflection until Puck has actually loaded TLAN.
+        // Companion often starts several seconds before workshop mods are added.
+        if (!IsTlanAssemblyLoaded())
+        {
+            return false;
+        }
+
         try
         {
             Type arenaBundleType = AccessTools.TypeByName(ArenaBundleTypeName);
@@ -1327,10 +1353,7 @@ internal static class TlanSydneyAdapter
 
         try
         {
-            Type settingsType = AccessTools.TypeByName("UISettings");
-            MethodInfo initialize = settingsType == null
-                ? null
-                : AccessTools.Method(settingsType, "Initialize", new[] { typeof(VisualElement) });
+            MethodInfo initialize = AccessTools.Method(typeof(UISettings), "Initialize", new[] { typeof(VisualElement) });
             if (initialize == null)
             {
                 return;
