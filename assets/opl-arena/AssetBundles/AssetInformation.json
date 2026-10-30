@@ -1,0 +1,18 @@
+{
+    "useGlass": true,
+    "useCustomAmbient": true,
+    "ambientMultiplier": 0.8,
+    "useGameDirectional": true,
+    "gameDirectionalIntensity": 0.6,
+    "gameDirectionalShadowStrength": -1.0,
+    "propsCastShadows": false,
+    "keepReflections": false,
+    "keepGameLights": false,
+    "musicEnabled": false,
+    "musicPath": "",
+    "musicVolume": 0.5,
+    "ambientAudioEnabled": true,
+    "ambientAudioPath": "ambient.mp3",
+    "ambientAudioVolume": 0.3,
+    "goalCrowdNoiseVolume": 1.0
+}

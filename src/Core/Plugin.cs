@@ -4,13 +4,14 @@ using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.Rendering;
+using OPLServerBanners.OPLArena;
 
 namespace OPLServerBanners;
 
 public sealed class Plugin : IPuckPlugin
 {
     public const string ModName = "OPLServerBanners";
-    public const string ModVersion = "1.1.0";
+    public const string ModVersion = "1.2.0";
     public const string ModGuid = "doma.oplserverbanners";
 
     private static readonly Harmony Harmony = new(ModGuid);
@@ -74,6 +75,7 @@ public sealed class Plugin : IPuckPlugin
             GoalieWarmupPuckTracking.Initialize();
             GoaliePracticeMenuClient.Initialize();
             MessageBoardClient.Initialize();
+            OPLArenaIntegration.Initialize();
 #if TROPHY_COMMANDS
             TrophyClient.Initialize();
 #endif
@@ -116,6 +118,7 @@ public sealed class Plugin : IPuckPlugin
             CompetitiveSkatingConfigServer.Shutdown();
             GoaliePracticeMenuClient.Shutdown();
             MessageBoardClient.Shutdown();
+            OPLArenaIntegration.Shutdown();
             MessageBoardServer.Shutdown();
             Harmony.UnpatchSelf();
             ClearActiveCopyIfOwned();

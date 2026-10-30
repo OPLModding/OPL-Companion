@@ -1,0 +1,11 @@
+{
+    "oplArenaEnabled": true,
+    "floodlightIntensityMultiplier": 5.0,
+    "floodlightIntensityMax": 2500.0,
+    "floodlightEmissionMultiplier": 3.0,
+    "floodlightReflectionMultiplier": 1.0,
+    "floodlightShadows": false,
+    "goalSirenIntensityMultiplier": 6.0,
+    "iceReflectionFilter": true,
+    "overheadNettingEnabled": false
+}

@@ -44,6 +44,18 @@
       <Link>MessageBoard\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="config\opl-arena\SydneyTLANArena.json">
+      <Link>SydneyTLANArena.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="config\opl-arena\TLANArena_Defaults.json">
+      <Link>TLANArena_Defaults.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="assets\opl-arena\AssetBundles\**\*">
+      <Link>AssetBundles\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup Condition="'$(EnableWarmupObstacles)' == 'true'">
@@ -70,6 +82,30 @@
       <HintPath>$(PuckInstallDir)\Puck_Data\Managed\Puck.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Unity.Collections">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\Unity.Collections.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIElementsModule">
+      <HintPath>$(PuckInstallDir)\Puck_Data\Managed\UnityEngine.UIElementsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <Target Name="PreBuildMessage" BeforeTargets="Build">
@@ -91,9 +127,13 @@
     <ItemGroup Condition="'$(EnableTrophyCommands)' == 'true'">
       <TrophyAssetFiles Include="assets\trophies\**\*" />
     </ItemGroup>
+    <ItemGroup>
+      <OplArenaAssetFiles Include="assets\opl-arena\AssetBundles\**\*" />
+    </ItemGroup>
 
     <MakeDir Directories="$(ClientPluginDir)" />
     <MakeDir Directories="$(DedicatedServerPluginDir)" />
+    <MakeDir Directories="$(ClientPluginDir)\AssetBundles" />
     <MakeDir Directories="$(ClientPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' == 'true'" />
     <MakeDir Directories="$(DedicatedServerPluginDir)\Assets\WarmupObstacles" Condition="'$(EnableWarmupObstacles)' == 'true'" />
     <MakeDir Directories="$(ClientPluginDir)\Assets\Trophies" Condition="'$(EnableTrophyCommands)' == 'true'" />
@@ -102,6 +142,9 @@
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(DedicatedServerPluginDir)" OverwriteReadOnlyFiles="true" />
     <Copy SourceFiles="$(OutputPath)serverconfig.json" DestinationFolder="$(ClientPluginDir)" OverwriteReadOnlyFiles="true" />
     <Copy SourceFiles="$(OutputPath)serverconfig.json" DestinationFolder="$(DedicatedServerPluginDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)SydneyTLANArena.json" DestinationFolder="$(ClientPluginDir)" OverwriteReadOnlyFiles="true" Condition="!Exists('$(ClientPluginDir)\SydneyTLANArena.json')" />
+    <Copy SourceFiles="$(OutputPath)TLANArena_Defaults.json" DestinationFolder="$(ClientPluginDir)" OverwriteReadOnlyFiles="true" Condition="!Exists('$(ClientPluginDir)\TLANArena_Defaults.json')" />
+    <Copy SourceFiles="@(OplArenaAssetFiles)" DestinationFiles="@(OplArenaAssetFiles->'$(ClientPluginDir)\AssetBundles\%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" />
     <Copy SourceFiles="@(WarmupObstacleAssetFiles)" DestinationFiles="@(WarmupObstacleAssetFiles->'$(ClientPluginDir)\Assets\WarmupObstacles\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableWarmupObstacles)' == 'true'" />
     <Copy SourceFiles="@(WarmupObstacleAssetFiles)" DestinationFiles="@(WarmupObstacleAssetFiles->'$(DedicatedServerPluginDir)\Assets\WarmupObstacles\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableWarmupObstacles)' == 'true'" />
     <Copy SourceFiles="@(TrophyAssetFiles)" DestinationFiles="@(TrophyAssetFiles->'$(ClientPluginDir)\Assets\Trophies\%(RecursiveDir)%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" Condition="'$(EnableTrophyCommands)' == 'true'" />
