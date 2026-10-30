@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -38,6 +39,7 @@ public static class OPLArenaIntegration
 internal sealed class TlanSydneyBootstrap : MonoBehaviour
 {
     private float _nextAttempt;
+    private float _nextUiCheck;
 
     private void Update()
     {
@@ -47,8 +49,12 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
             _nextAttempt = Time.unscaledTime + 1f;
         }
 
-        TlanSydneyAdapter.TryAddOplArenaSettingsToggle();
-        TlanSydneyAdapter.UpdateMenuPreview();
+        if (Time.unscaledTime >= _nextUiCheck)
+        {
+            TlanSydneyAdapter.TryAddOplArenaSettingsToggle();
+            TlanSydneyAdapter.UpdateMenuPreview();
+            _nextUiCheck = Time.unscaledTime + 0.25f;
+        }
     }
 }
 
@@ -153,6 +159,7 @@ internal static class TlanSydneyAdapter
             ApplyOverheadNettingVisibility(_menuBackdrop);
             CaptureMenuRenderSettings();
             ApplyTlanMenuRenderSettings(_menuBackdrop, menuConfig);
+            StaticBatchingUtility.Combine(_menuBackdrop);
             Debug.Log("[SydneyTLANArena] Lightweight main-menu stadium snapshot enabled: active TLAN settings, live TRL ice, effective floodlight intensity=" + menuFloodlightIntensity.ToString("0.#") + ".");
         }
         catch (Exception ex)
@@ -2423,6 +2430,7 @@ internal sealed class SydneyIceReflectionFilterMarker : MonoBehaviour
 
 internal sealed class SydneyFloodlightIntensity : MonoBehaviour
 {
+    private const float StatePollInterval = 0.1f;
     private Light[] _lights;
     private Light[] _nativeFloodlights;
     private float[] _baseIntensities;
@@ -2433,6 +2441,8 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
     private int _renderingLayerMask = -1;
     private bool _shadowsEnabled = true;
     private GameObject _arenaRoot;
+    private float _nextStatePoll;
+    private bool _disabledStateApplied;
 
     public void Initialize(Light[] lights, float multiplier, float maximum, Light[] nativeFloodlights, float fallbackBaseIntensity, GameObject arenaRoot)
     {
@@ -2505,8 +2515,18 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             return;
         }
 
+        if (Time.unscaledTime < _nextStatePoll)
+        {
+            return;
+        }
+        _nextStatePoll = Time.unscaledTime + StatePollInterval;
+
         if (!TlanSydneyAdapter.IsOplArenaEnabled())
         {
+            if (_disabledStateApplied)
+            {
+                return;
+            }
             for (int i = 0; i < _lights.Length; i++)
             {
                 if (_lights[i] != null)
@@ -2515,8 +2535,10 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
                     _lights[i].enabled = false;
                 }
             }
+            _disabledStateApplied = true;
             return;
         }
+        _disabledStateApplied = false;
 
         bool nativeLightsAvailable = _nativeFloodlights != null && _nativeFloodlights.Length > 0;
         bool nativeLightsOn = false;
@@ -2569,7 +2591,10 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             if (nativeLightsAvailable || independentStateAvailable)
             {
                 _baseIntensities[i] = nativeLightsOn ? nativeIntensity : 0f;
-                light.color = nativeColor;
+                if (!Approximately(light.color, nativeColor))
+                {
+                    light.color = nativeColor;
+                }
             }
             else if (Mathf.Abs(light.intensity - _lastAppliedIntensities[i]) > 0.01f)
             {
@@ -2577,12 +2602,33 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             }
 
             float scaledIntensity = Mathf.Clamp(_baseIntensities[i] * _multiplier, 0f, _maximum);
-            light.intensity = scaledIntensity;
-            light.enabled = scaledIntensity > 0.01f;
-            light.cullingMask = ~0;
-            light.renderingLayerMask = _renderingLayerMask;
-            light.shadows = _shadowsEnabled ? LightShadows.Soft : LightShadows.None;
-            light.shadowStrength = _shadowsEnabled ? 0.85f : 0f;
+            bool shouldBeEnabled = scaledIntensity > 0.01f;
+            LightShadows desiredShadows = _shadowsEnabled ? LightShadows.Soft : LightShadows.None;
+            float desiredShadowStrength = _shadowsEnabled ? 0.85f : 0f;
+            if (Mathf.Abs(light.intensity - scaledIntensity) > 0.01f)
+            {
+                light.intensity = scaledIntensity;
+            }
+            if (light.enabled != shouldBeEnabled)
+            {
+                light.enabled = shouldBeEnabled;
+            }
+            if (light.cullingMask != ~0)
+            {
+                light.cullingMask = ~0;
+            }
+            if (light.renderingLayerMask != _renderingLayerMask)
+            {
+                light.renderingLayerMask = _renderingLayerMask;
+            }
+            if (light.shadows != desiredShadows)
+            {
+                light.shadows = desiredShadows;
+            }
+            if (Mathf.Abs(light.shadowStrength - desiredShadowStrength) > 0.001f)
+            {
+                light.shadowStrength = desiredShadowStrength;
+            }
             if (light.range < 220f)
             {
                 light.range = 220f;
@@ -2590,11 +2636,21 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             _lastAppliedIntensities[i] = scaledIntensity;
         }
     }
+
+    private static bool Approximately(Color left, Color right)
+    {
+        return Mathf.Abs(left.r - right.r) < 0.001f &&
+               Mathf.Abs(left.g - right.g) < 0.001f &&
+               Mathf.Abs(left.b - right.b) < 0.001f &&
+               Mathf.Abs(left.a - right.a) < 0.001f;
+    }
 }
 
 internal sealed class SydneyIceReflectionContribution : MonoBehaviour
 {
     private const int MaskSize = 64;
+    private const int BakeRowsPerFrame = 4;
+    private const float StatePollInterval = 0.1f;
     private const float IceHalfWidth = 30f;
     private const float IceHalfLength = 42f;
     private const float CookieHalfWidth = 0.82f;
@@ -2605,6 +2661,11 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
     private float _reflectionMultiplier;
     private Material _material;
     private Texture2D _maskTexture;
+    private static Color[] _cachedMaskPixels;
+    private float _nextStatePoll;
+    private Color _lastAppliedColour;
+    private bool _hasAppliedColour;
+    private bool _hasLegacyColourProperty;
 
     public void Initialize(Light[] lights, float maximumIntensity, float reflectionMultiplier)
     {
@@ -2626,13 +2687,15 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
             return;
         }
 
+        if (Time.unscaledTime < _nextStatePoll)
+        {
+            return;
+        }
+        _nextStatePoll = Time.unscaledTime + StatePollInterval;
+
         if (!TlanSydneyAdapter.IsOplArenaEnabled())
         {
-            _material.SetColor("_BaseColor", Color.black);
-            if (_material.HasProperty("_Color"))
-            {
-                _material.SetColor("_Color", Color.black);
-            }
+            ApplyReflectionColour(Color.black);
             return;
         }
 
@@ -2654,11 +2717,31 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
 
         float normalizedIntensity = Mathf.Clamp01(intensity / _maximumIntensity);
         float strength = on ? Mathf.Lerp(0.08f, 1.5f, normalizedIntensity) * _reflectionMultiplier : 0f;
-        _material.SetColor("_BaseColor", new Color(colour.r * strength, colour.g * strength, colour.b * strength, 1f));
-        if (_material.HasProperty("_Color"))
+        ApplyReflectionColour(new Color(colour.r * strength, colour.g * strength, colour.b * strength, 1f));
+    }
+
+    private void ApplyReflectionColour(Color colour)
+    {
+        if (_hasAppliedColour && Approximately(_lastAppliedColour, colour))
         {
-            _material.SetColor("_Color", new Color(colour.r * strength, colour.g * strength, colour.b * strength, 1f));
+            return;
         }
+
+        _material.SetColor("_BaseColor", colour);
+        if (_hasLegacyColourProperty)
+        {
+            _material.SetColor("_Color", colour);
+        }
+        _lastAppliedColour = colour;
+        _hasAppliedColour = true;
+    }
+
+    private static bool Approximately(Color left, Color right)
+    {
+        return Mathf.Abs(left.r - right.r) < 0.001f &&
+               Mathf.Abs(left.g - right.g) < 0.001f &&
+               Mathf.Abs(left.b - right.b) < 0.001f &&
+               Mathf.Abs(left.a - right.a) < 0.001f;
     }
 
     private void CreateReflectionLayer()
@@ -2678,67 +2761,6 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
             hideFlags = HideFlags.HideAndDontSave
         };
 
-        Color[] pixels = new Color[MaskSize * MaskSize];
-        for (int y = 0; y < MaskSize; y++)
-        {
-            float z = Mathf.Lerp(-IceHalfLength, IceHalfLength, (y + 0.5f) / MaskSize);
-            for (int x = 0; x < MaskSize; x++)
-            {
-                float xPosition = Mathf.Lerp(-IceHalfWidth, IceHalfWidth, (x + 0.5f) / MaskSize);
-                float mask = 0f;
-                Vector3 target = new Vector3(xPosition, 0f, z);
-                for (int lightIndex = 0; lightIndex < _lights.Length; lightIndex++)
-                {
-                    Light light = _lights[lightIndex];
-                    if (light == null)
-                    {
-                        continue;
-                    }
-
-                    Vector3 source = transform.InverseTransformPoint(light.transform.position);
-                    Vector3 direction = transform.InverseTransformDirection(light.transform.forward).normalized;
-                    Vector3 ray = target - source;
-                    float distance = ray.magnitude;
-                    if (distance < 0.1f)
-                    {
-                        continue;
-                    }
-
-                    Vector3 rayDirection = ray / distance;
-                    float coneDot = Vector3.Dot(rayDirection, direction);
-                    float coneLimit = Mathf.Cos(light.spotAngle * 0.5f * Mathf.Deg2Rad);
-                    if (coneDot < coneLimit)
-                    {
-                        continue;
-                    }
-
-                    float depth = Vector3.Dot(ray, direction);
-                    if (depth <= 0.1f)
-                    {
-                        continue;
-                    }
-
-                    Vector3 right = Vector3.Cross(Vector3.up, direction).normalized;
-                    float cookieScale = Mathf.Tan(light.spotAngle * 0.5f * Mathf.Deg2Rad);
-                    float cookieX = Vector3.Dot(ray, right) / depth / cookieScale;
-                    float cookieY = Vector3.Dot(ray, Vector3.up) / depth / cookieScale;
-                    float distanceToEdge = Mathf.Min(CookieHalfWidth - Mathf.Abs(cookieX), CookieHalfHeight - Mathf.Abs(cookieY));
-                    float lightMask = Mathf.Clamp01(distanceToEdge / CookieFeather);
-                    if (lightMask <= 0f || IsOccluded(source, target))
-                    {
-                        continue;
-                    }
-
-                    mask = Mathf.Clamp01(mask + lightMask);
-                }
-
-                pixels[y * MaskSize + x] = new Color(mask, mask, mask, mask);
-            }
-        }
-
-        _maskTexture.SetPixels(pixels);
-        _maskTexture.Apply(false, true);
-
         _material = new Material(shader)
         {
             name = "Sydney Floodlight Ice Reflection Contribution (Runtime)",
@@ -2747,6 +2769,7 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
         _material.SetTexture("_BaseMap", _maskTexture);
         _material.SetTexture("_MainTex", _maskTexture);
         _material.SetColor("_BaseColor", Color.black);
+        _hasLegacyColourProperty = _material.HasProperty("_Color");
         _material.SetInt("_Cull", 0);
         if (_material.HasProperty("_Surface"))
         {
@@ -2794,7 +2817,113 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
         meshRenderer.sharedMaterial = _material;
         meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         meshRenderer.receiveShadows = false;
-        Debug.Log("[SydneyTLANArena] Created custom rectangular floodlight reflection contribution on the ice with static scene occlusion.");
+
+        if (_cachedMaskPixels != null && _cachedMaskPixels.Length == MaskSize * MaskSize)
+        {
+            _maskTexture.SetPixels(_cachedMaskPixels);
+            _maskTexture.Apply(false, true);
+            Debug.Log("[SydneyTLANArena] Reused the cached rectangular floodlight reflection mask.");
+        }
+        else
+        {
+            Color[] blankPixels = new Color[MaskSize * MaskSize];
+            _maskTexture.SetPixels(blankPixels);
+            _maskTexture.Apply(false, false);
+            StartCoroutine(BakeReflectionMask(blankPixels));
+            Debug.Log("[SydneyTLANArena] Created custom rectangular floodlight reflection contribution; static occlusion mask will bake incrementally.");
+        }
+    }
+
+    private IEnumerator BakeReflectionMask(Color[] pixels)
+    {
+        int lightCount = _lights == null ? 0 : _lights.Length;
+        bool[] validLights = new bool[lightCount];
+        Vector3[] sources = new Vector3[lightCount];
+        Vector3[] directions = new Vector3[lightCount];
+        Vector3[] rights = new Vector3[lightCount];
+        float[] coneLimits = new float[lightCount];
+        float[] cookieScales = new float[lightCount];
+        for (int lightIndex = 0; lightIndex < lightCount; lightIndex++)
+        {
+            Light light = _lights[lightIndex];
+            if (light == null)
+            {
+                continue;
+            }
+
+            validLights[lightIndex] = true;
+            sources[lightIndex] = transform.InverseTransformPoint(light.transform.position);
+            directions[lightIndex] = transform.InverseTransformDirection(light.transform.forward).normalized;
+            rights[lightIndex] = Vector3.Cross(Vector3.up, directions[lightIndex]).normalized;
+            coneLimits[lightIndex] = Mathf.Cos(light.spotAngle * 0.5f * Mathf.Deg2Rad);
+            cookieScales[lightIndex] = Mathf.Tan(light.spotAngle * 0.5f * Mathf.Deg2Rad);
+        }
+
+        for (int y = 0; y < MaskSize; y++)
+        {
+            float z = Mathf.Lerp(-IceHalfLength, IceHalfLength, (y + 0.5f) / MaskSize);
+            for (int x = 0; x < MaskSize; x++)
+            {
+                float xPosition = Mathf.Lerp(-IceHalfWidth, IceHalfWidth, (x + 0.5f) / MaskSize);
+                float mask = 0f;
+                Vector3 target = new Vector3(xPosition, 0f, z);
+                for (int lightIndex = 0; lightIndex < lightCount; lightIndex++)
+                {
+                    if (!validLights[lightIndex])
+                    {
+                        continue;
+                    }
+
+                    Vector3 source = sources[lightIndex];
+                    Vector3 direction = directions[lightIndex];
+                    Vector3 ray = target - source;
+                    float distance = ray.magnitude;
+                    if (distance < 0.1f)
+                    {
+                        continue;
+                    }
+
+                    Vector3 rayDirection = ray / distance;
+                    float coneDot = Vector3.Dot(rayDirection, direction);
+                    if (coneDot < coneLimits[lightIndex])
+                    {
+                        continue;
+                    }
+
+                    float depth = Vector3.Dot(ray, direction);
+                    if (depth <= 0.1f)
+                    {
+                        continue;
+                    }
+
+                    float cookieX = Vector3.Dot(ray, rights[lightIndex]) / depth / cookieScales[lightIndex];
+                    float cookieY = Vector3.Dot(ray, Vector3.up) / depth / cookieScales[lightIndex];
+                    float distanceToEdge = Mathf.Min(CookieHalfWidth - Mathf.Abs(cookieX), CookieHalfHeight - Mathf.Abs(cookieY));
+                    float lightMask = Mathf.Clamp01(distanceToEdge / CookieFeather);
+                    if (lightMask <= 0f || IsOccluded(source, target))
+                    {
+                        continue;
+                    }
+
+                    mask = Mathf.Clamp01(mask + lightMask);
+                }
+
+                pixels[y * MaskSize + x] = new Color(mask, mask, mask, mask);
+            }
+
+            if ((y + 1) % BakeRowsPerFrame == 0)
+            {
+                yield return null;
+            }
+        }
+
+        _cachedMaskPixels = pixels;
+        if (_maskTexture != null)
+        {
+            _maskTexture.SetPixels(pixels);
+            _maskTexture.Apply(false, true);
+        }
+        Debug.Log("[SydneyTLANArena] Incremental rectangular floodlight reflection mask bake completed and cached.");
     }
 
     private bool IsOccluded(Vector3 source, Vector3 target)
@@ -2838,6 +2967,7 @@ internal sealed class SydneyIceReflectionContribution : MonoBehaviour
 
 internal sealed class SydneyLampGlow : MonoBehaviour
 {
+    private const float StatePollInterval = 0.1f;
     private Renderer _renderer;
     private Light[] _lights;
     private Material _glowMaterial;
@@ -2846,6 +2976,12 @@ internal sealed class SydneyLampGlow : MonoBehaviour
     private bool _previewEmission;
     private float _previewIntensity;
     private Color _previewColour = new Color(1f, 0.77f, 0.56f, 1f);
+    private float _nextStatePoll;
+    private bool _stateDirty = true;
+    private bool _lastOn;
+    private float _lastIntensity = float.NaN;
+    private Color _lastColour;
+    private bool _lastOplEnabled = true;
 
     public void Initialize(Renderer renderer, Light[] lights, float emissionMultiplier, float maximumIntensity)
     {
@@ -2905,10 +3041,16 @@ internal sealed class SydneyLampGlow : MonoBehaviour
         _previewEmission = previewEmission;
         _previewIntensity = Mathf.Clamp(previewIntensity, 0f, _maximumIntensity);
         _previewColour = previewColour;
+        _stateDirty = true;
     }
 
     private void LateUpdate()
     {
+        if (!_stateDirty && Time.unscaledTime < _nextStatePoll)
+        {
+            return;
+        }
+        _nextStatePoll = Time.unscaledTime + StatePollInterval;
         UpdateEmission();
     }
 
@@ -2919,14 +3061,28 @@ internal sealed class SydneyLampGlow : MonoBehaviour
             return;
         }
 
-        if (!TlanSydneyAdapter.IsOplArenaEnabled())
+        bool oplEnabled = TlanSydneyAdapter.IsOplArenaEnabled();
+        if (!oplEnabled)
         {
-            SetMaterialColour(_glowMaterial, Color.black);
-            SetMaterialColour(_panelOverlayMaterial, Color.black);
+            if (_lastOplEnabled || _stateDirty)
+            {
+                SetMaterialColour(_glowMaterial, Color.black);
+                SetMaterialColour(_panelOverlayMaterial, Color.black);
+            }
+            _lastOplEnabled = false;
+            _stateDirty = false;
             return;
         }
+        if (!_lastOplEnabled)
+        {
+            _stateDirty = true;
+        }
+        _lastOplEnabled = true;
 
-        _renderer.enabled = true;
+        if (!_renderer.enabled)
+        {
+            _renderer.enabled = true;
+        }
 
         bool on = false;
         Color colour = Color.white;
@@ -2949,6 +3105,16 @@ internal sealed class SydneyLampGlow : MonoBehaviour
             colour = light.color;
             intensity = Mathf.Max(intensity, light.intensity);
         }
+
+        if (!_stateDirty && _lastOn == on && Mathf.Abs(_lastIntensity - intensity) < 0.01f && Approximately(_lastColour, colour))
+        {
+            return;
+        }
+
+        _lastOn = on;
+        _lastIntensity = intensity;
+        _lastColour = colour;
+        _stateDirty = false;
 
         if (_glowMaterial.HasProperty("_EmissionColor"))
         {
@@ -2990,6 +3156,14 @@ internal sealed class SydneyLampGlow : MonoBehaviour
                 _panelOverlayMaterial.SetColor("_Color", panelColour);
             }
         }
+    }
+
+    private static bool Approximately(Color left, Color right)
+    {
+        return Mathf.Abs(left.r - right.r) < 0.001f &&
+               Mathf.Abs(left.g - right.g) < 0.001f &&
+               Mathf.Abs(left.b - right.b) < 0.001f &&
+               Mathf.Abs(left.a - right.a) < 0.001f;
     }
 
     private static void SetMaterialColour(Material material, Color colour)
@@ -3095,6 +3269,7 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
     private const string GameStateChangedEvent = "Event_Everyone_OnGameStateChanged";
     private const string ServerChatCommandEvent = "Event_Server_OnChatCommand";
     private const float SydneyReplayGoalLine = 40f;
+    private const float PhasePollInterval = 0.1f;
     private static SydneyGoalSirenController _activeController;
     private readonly List<SydneyGoalSirenUnit> _units = new List<SydneyGoalSirenUnit>();
     private bool _subscribed;
@@ -3108,6 +3283,8 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
     private int _replayScoredEnd;
     private float _replayGoalProgress;
     private bool _replayGoalTriggered;
+    private float _nextPhasePoll;
+    private bool _disabledStateApplied;
 
     public void Initialize(GameObject arenaRoot, float intensityMultiplier)
     {
@@ -3150,21 +3327,46 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
     {
         if (!TlanSydneyAdapter.IsOplArenaEnabled())
         {
-            for (int i = 0; i < _units.Count; i++)
+            if (!_disabledStateApplied)
             {
-                _units[i].SetManualActive(false);
-                _units[i].SetPeriodLightActive(false);
-                _units[i].ClearGoalActive();
+                for (int i = 0; i < _units.Count; i++)
+                {
+                    _units[i].SetManualActive(false);
+                    _units[i].SetPeriodLightActive(false);
+                    _units[i].ClearGoalActive();
+                }
+                _disabledStateApplied = true;
             }
             return;
         }
+        _disabledStateApplied = false;
 
-        UpdatePhaseState();
-        UpdateReplayGoalTrigger();
+        if (Time.unscaledTime >= _nextPhasePoll)
+        {
+            UpdatePhaseState();
+            _nextPhasePoll = Time.unscaledTime + PhasePollInterval;
+        }
+
+        // Only compare bindings each frame; writes occur solely if another
+        // renderer/LOD system replaced them. This retains the proximity fix
+        // without reapplying all siren light and material state every frame.
+        for (int i = 0; i < _units.Count; i++)
+        {
+            _units[i].MaintainMaterialBindings();
+        }
+
+        if (_lastPhase == GamePhase.Replay)
+        {
+            UpdateReplayGoalTrigger();
+        }
+
         float deltaTime = Time.unscaledDeltaTime;
         for (int i = 0; i < _units.Count; i++)
         {
-            _units[i].Tick(deltaTime);
+            if (_units[i].NeedsTick)
+            {
+                _units[i].Tick(deltaTime);
+            }
         }
     }
 
@@ -3519,6 +3721,7 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
         private bool _periodLightActive;
 
         public int Side => _side;
+        public bool NeedsTick => _manualActive || _goalActive || _periodLightActive;
 
         public SydneyGoalSirenUnit(Renderer domeRenderer, int side, float intensityMultiplier)
         {
@@ -3787,6 +3990,10 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
 
         public void SetPeriodLightActive(bool active)
         {
+            if (_periodLightActive == active)
+            {
+                return;
+            }
             _periodLightActive = active;
             if (!_manualActive && !_goalActive)
             {
@@ -3816,7 +4023,6 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
 
             if (!_goalActive)
             {
-                SetActive(false, 0f);
                 return;
             }
 
@@ -3829,6 +4035,37 @@ internal sealed class SydneyGoalSirenController : MonoBehaviour
         {
             _angle = (_angle + RotationSpeed * deltaTime) % 360f;
             _rotorRoot.transform.localRotation = Quaternion.Euler(0f, _angle, 0f);
+        }
+
+        public void MaintainMaterialBindings()
+        {
+            if (_domeRenderer != null && _domeRenderer.sharedMaterial != _domeMaterial)
+            {
+                _domeRenderer.sharedMaterial = _domeMaterial;
+            }
+            if (_sourceDomeRenderer != null && _sourceDomeRenderer.enabled)
+            {
+                _sourceDomeRenderer.enabled = false;
+            }
+            for (int i = 0; i < _blades.Length; i++)
+            {
+                if (_rotorMaterial != null && _blades[i] != null && _blades[i].sharedMaterial != _rotorMaterial)
+                {
+                    _blades[i].sharedMaterial = _rotorMaterial;
+                }
+            }
+            if (_periodEmitterMaterial != null && _periodEmitterRenderer != null &&
+                _periodEmitterRenderer.sharedMaterial != _periodEmitterMaterial)
+            {
+                _periodEmitterRenderer.sharedMaterial = _periodEmitterMaterial;
+            }
+            for (int i = 0; i < _periodBlades.Length; i++)
+            {
+                if (_periodRotorMaterial != null && _periodBlades[i] != null && _periodBlades[i].sharedMaterial != _periodRotorMaterial)
+                {
+                    _periodBlades[i].sharedMaterial = _periodRotorMaterial;
+                }
+            }
         }
 
         public void Dispose()
