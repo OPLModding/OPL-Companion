@@ -42,9 +42,8 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
     // The old implementation performed UI and menu-preview polling from Update.
     // In a profiler this became a measurable per-frame cost, despite the actual
     // work being needed only when a scene changes or TLAN becomes available.
-    private const float PatchRetryIntervalSeconds = 5f;
     private static TlanSydneyBootstrap _instance;
-    private Coroutine _patchRetryRoutine;
+    private Coroutine _patchInstallRoutine;
     private Coroutine _sceneRefreshRoutine;
 
     private void Awake()
@@ -55,14 +54,16 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
     private void OnEnable()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoaded;
         QueueSceneRefresh();
-        EnsurePatchRetry();
+        QueuePatchInstallation();
     }
 
     private void OnDisable()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
-        _patchRetryRoutine = null;
+        AppDomain.CurrentDomain.AssemblyLoad -= OnAssemblyLoaded;
+        _patchInstallRoutine = null;
         _sceneRefreshRoutine = null;
     }
 
@@ -82,11 +83,11 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
         }
     }
 
-    internal static void RequestPatchRetry()
+    internal static void RequestPatchInstall()
     {
         if (_instance != null)
         {
-            _instance.EnsurePatchRetry();
+            _instance.QueuePatchInstallation();
         }
     }
 
@@ -96,7 +97,19 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
         // the scene boundary avoids the previous 4 Hz ClearMenuPreview polling.
         TlanSydneyAdapter.ClearMenuPreview();
         QueueSceneRefresh();
-        EnsurePatchRetry();
+    }
+
+    private void OnAssemblyLoaded(object sender, AssemblyLoadEventArgs args)
+    {
+        if (args?.LoadedAssembly == null ||
+            !string.Equals(args.LoadedAssembly.GetName().Name, "TLANArena", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // Puck loads workshop assemblies from its main mod-manager thread. Wait
+        // one frame so TLAN can complete its own Enable routine before patching.
+        QueuePatchInstallation();
     }
 
     private void QueueSceneRefresh()
@@ -122,39 +135,33 @@ internal sealed class TlanSydneyBootstrap : MonoBehaviour
         _sceneRefreshRoutine = null;
     }
 
-    private void EnsurePatchRetry()
+    private void QueuePatchInstallation()
     {
         if (!isActiveAndEnabled
-            || _patchRetryRoutine != null
+            || _patchInstallRoutine != null
             || TlanSydneyAdapter.PatchInstalled
-            || !TlanSydneyAdapter.IsOplArenaEnabled())
+            || !TlanSydneyAdapter.IsOplArenaEnabled()
+            || !TlanSydneyAdapter.IsTlanAssemblyLoaded())
         {
             return;
         }
 
-        _patchRetryRoutine = StartCoroutine(RetryPatchUntilTlanIsAvailable());
+        _patchInstallRoutine = StartCoroutine(InstallPatchAfterTlanLoads());
     }
 
-    private IEnumerator RetryPatchUntilTlanIsAvailable()
+    private IEnumerator InstallPatchAfterTlanLoads()
     {
-        while (TlanSydneyAdapter.IsOplArenaEnabled() && !TlanSydneyAdapter.PatchInstalled)
-        {
-            // TypeByName walks loaded assemblies and is surprisingly expensive
-            // before TLAN has even been loaded by Puck's mod manager. The cheap
-            // assembly-name check keeps this background compatibility retry out
-            // of the frame budget until there is something to patch.
-            if (TlanSydneyAdapter.IsTlanAssemblyLoaded() && TlanSydneyAdapter.TryInstallPatch())
-            {
-                QueueSceneRefresh();
-                break;
-            }
+        yield return null;
 
-            // TLAN may be enabled after Companion. A sparse retry retains that
-            // compatibility without putting reflection/type discovery in Update.
-            yield return new WaitForSecondsRealtime(PatchRetryIntervalSeconds);
+        if (TlanSydneyAdapter.IsOplArenaEnabled()
+            && !TlanSydneyAdapter.PatchInstalled
+            && TlanSydneyAdapter.IsTlanAssemblyLoaded()
+            && TlanSydneyAdapter.TryInstallPatch())
+        {
+            QueueSceneRefresh();
         }
 
-        _patchRetryRoutine = null;
+        _patchInstallRoutine = null;
     }
 }
 
@@ -545,7 +552,7 @@ internal static class TlanSydneyAdapter
                 }
             }
             Debug.Log("[SydneyTLANArena] OPL ARENA enabled. TLAN arena assets were refreshed for the next/current arena load.");
-            TlanSydneyBootstrap.RequestPatchRetry();
+            TlanSydneyBootstrap.RequestPatchInstall();
         }
         else
         {
