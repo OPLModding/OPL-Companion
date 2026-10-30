@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 #nullable disable
@@ -38,23 +39,118 @@ public static class OPLArenaIntegration
 
 internal sealed class TlanSydneyBootstrap : MonoBehaviour
 {
-    private float _nextAttempt;
-    private float _nextUiCheck;
+    // The old implementation performed UI and menu-preview polling from Update.
+    // In a profiler this became a measurable per-frame cost, despite the actual
+    // work being needed only when a scene changes or TLAN becomes available.
+    private const float PatchRetryIntervalSeconds = 5f;
+    private static TlanSydneyBootstrap _instance;
+    private Coroutine _patchRetryRoutine;
+    private Coroutine _sceneRefreshRoutine;
 
-    private void Update()
+    private void Awake()
     {
-        if (!TlanSydneyAdapter.PatchInstalled && Time.unscaledTime >= _nextAttempt)
+        _instance = this;
+    }
+
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        QueueSceneRefresh();
+        EnsurePatchRetry();
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        _patchRetryRoutine = null;
+        _sceneRefreshRoutine = null;
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this)
         {
-            TlanSydneyAdapter.TryInstallPatch();
-            _nextAttempt = Time.unscaledTime + 1f;
+            _instance = null;
+        }
+    }
+
+    internal static void RequestRefresh()
+    {
+        if (_instance != null)
+        {
+            _instance.QueueSceneRefresh();
+        }
+    }
+
+    internal static void RequestPatchRetry()
+    {
+        if (_instance != null)
+        {
+            _instance.EnsurePatchRetry();
+        }
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode loadMode)
+    {
+        // A menu backdrop belongs only to the locker-room scene. Clearing it at
+        // the scene boundary avoids the previous 4 Hz ClearMenuPreview polling.
+        TlanSydneyAdapter.ClearMenuPreview();
+        QueueSceneRefresh();
+        EnsurePatchRetry();
+    }
+
+    private void QueueSceneRefresh()
+    {
+        if (!isActiveAndEnabled || _sceneRefreshRoutine != null)
+        {
+            return;
         }
 
-        if (Time.unscaledTime >= _nextUiCheck)
+        _sceneRefreshRoutine = StartCoroutine(RefreshCurrentScene());
+    }
+
+    private IEnumerator RefreshCurrentScene()
+    {
+        // Let scene objects and UISettings finish their own Start/enable work
+        // before looking them up. This is intentionally event-driven rather
+        // than a recurring Update scan.
+        yield return null;
+        yield return new WaitForEndOfFrame();
+
+        TlanSydneyAdapter.TryAddOplArenaSettingsToggle();
+        TlanSydneyAdapter.UpdateMenuPreview();
+        _sceneRefreshRoutine = null;
+    }
+
+    private void EnsurePatchRetry()
+    {
+        if (!isActiveAndEnabled
+            || _patchRetryRoutine != null
+            || TlanSydneyAdapter.PatchInstalled
+            || !TlanSydneyAdapter.IsOplArenaEnabled())
         {
-            TlanSydneyAdapter.TryAddOplArenaSettingsToggle();
-            TlanSydneyAdapter.UpdateMenuPreview();
-            _nextUiCheck = Time.unscaledTime + 0.25f;
+            return;
         }
+
+        _patchRetryRoutine = StartCoroutine(RetryPatchUntilTlanIsAvailable());
+    }
+
+    private IEnumerator RetryPatchUntilTlanIsAvailable()
+    {
+        while (TlanSydneyAdapter.IsOplArenaEnabled() && !TlanSydneyAdapter.PatchInstalled)
+        {
+            if (TlanSydneyAdapter.TryInstallPatch())
+            {
+                QueueSceneRefresh();
+                break;
+            }
+
+            // TLAN may be enabled after Companion. A sparse retry retains that
+            // compatibility without putting reflection/type discovery in Update.
+            yield return new WaitForSecondsRealtime(PatchRetryIntervalSeconds);
+        }
+
+        _patchRetryRoutine = null;
     }
 }
 
@@ -430,12 +526,17 @@ internal static class TlanSydneyAdapter
                 }
             }
             Debug.Log("[SydneyTLANArena] OPL ARENA enabled. TLAN arena assets were refreshed for the next/current arena load.");
+            TlanSydneyBootstrap.RequestPatchRetry();
         }
         else
         {
             RestoreTlanAssetsAfterDisable();
             Debug.Log("[SydneyTLANArena] OPL ARENA disabled. TLAN standard arena assets were restored for the next/current arena load.");
         }
+
+        // Settings changes are one of the few times a locker-room preview needs
+        // refreshing. Schedule that single refresh instead of relying on Update.
+        TlanSydneyBootstrap.RequestRefresh();
     }
 
     private static void AddOplArenaChangeChatMessage()
