@@ -84,6 +84,9 @@ internal static class TlanSydneyAdapter
     private static float _menuFogDensity;
     private static float _menuFogStartDistance;
     private static float _menuFogEndDistance;
+    private static TlanMenuRenderConfig _runtimeLightingConfig;
+    private static Light _runtimeSun;
+    private static float _nextRuntimeSunSearch;
 
     public static bool PatchInstalled => _patchInstalled;
 
@@ -1327,6 +1330,15 @@ internal static class TlanSydneyAdapter
                 sirenController = arenaRoot.AddComponent<SydneyGoalSirenController>();
             }
             sirenController.Initialize(arenaRoot, (_adapterConfig ?? LoadAdapterConfig()).goalSirenIntensityMultiplier);
+
+            // Some TLAN builds do not invoke their native floodlight attachment
+            // successfully for the Sydney hierarchy. Ensure Companion still owns
+            // its visual lighting in that case, without creating a duplicate when
+            // the normal TLAN hook already ran.
+            if (arenaRoot.transform.Find("SydneyTLANArenaRuntimeLights") == null)
+            {
+                BeforeFloodlightAttach(arenaRoot);
+            }
         }
         catch (Exception ex)
         {
@@ -1354,20 +1366,7 @@ internal static class TlanSydneyAdapter
             bool floodlightShadows = !menuPreview && _adapterConfig.floodlightShadows;
             Light[] nativeFloodlights = menuPreview ? new Light[0] : FindNativeFloodlights(arenaRoot, runtimeLights);
 
-            Vector3[] positions =
-            {
-                new Vector3(-48.22f, 42f, -71.46f),
-                new Vector3(-48.22f, 42f, 71.46f),
-                new Vector3(48.22f, 42f, -71.46f),
-                new Vector3(48.22f, 42f, 71.46f)
-            };
-            Vector3[] directions =
-            {
-                new Vector3(0.7071f, 0f, 0.7071f),
-                new Vector3(0.7071f, 0f, -0.7071f),
-                new Vector3(-0.7071f, 0f, 0.7071f),
-                new Vector3(-0.7071f, 0f, -0.7071f)
-            };
+            ResolveFloodlightTransforms(arenaRoot, nativeFloodlights, out Vector3[] positions, out Vector3[] directions);
             Texture2D panelCookie = menuPreview ? null : CreateFloodlightCookie();
             for (int i = 0; !menuPreview && i < positions.Length; i++)
             {
@@ -1406,7 +1405,8 @@ internal static class TlanSydneyAdapter
                     _adapterConfig.floodlightIntensityMultiplier,
                     _adapterConfig.floodlightIntensityMax,
                     nativeFloodlights,
-                    401.73407f);
+                    401.73407f,
+                    arenaRoot);
                 intensityControl.SetShadowsEnabled(floodlightShadows);
             }
 
@@ -1440,7 +1440,8 @@ internal static class TlanSydneyAdapter
                 reflectionContribution.Initialize(runtimeLightComponents, _adapterConfig.floodlightIntensityMax, _adapterConfig.floodlightReflectionMultiplier);
             }
 
-            Debug.Log("[SydneyTLANArena] Created " + (menuPreview ? "lightweight menu floodlight panels" : "4 runtime floodlights at the Sydney lamp-array positions.") + ".");
+            Debug.Log("[SydneyTLANArena] Created " + (menuPreview ? "lightweight menu floodlight panels" : "4 runtime floodlights at the Sydney lamp-array positions") +
+                      " (native source candidates=" + nativeFloodlights.Length + ", Companion-owned state fallback enabled).");
         }
         catch (Exception ex)
         {
@@ -1479,16 +1480,12 @@ internal static class TlanSydneyAdapter
                 continue;
             }
 
-            if (!string.Equals(light.gameObject.name, "Spot Light", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             Transform current = light.transform.parent;
             bool underFloodlight = false;
             while (current != null && current != arenaRoot.transform.parent)
             {
-                if (current.name.IndexOf("Flood_Lamps", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (current.name.IndexOf("Flood_Lamps", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    current.name.IndexOf("Floodlight", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     underFloodlight = true;
                     break;
@@ -1502,7 +1499,67 @@ internal static class TlanSydneyAdapter
             }
         }
 
+        Debug.Log("[SydneyTLANArena] Companion found " + matches.Count +
+                  " native floodlight source(s) under the Sydney prefab; native names are treated as optional compatibility hints.");
         return matches.ToArray();
+    }
+
+    private static void ResolveFloodlightTransforms(GameObject arenaRoot, Light[] nativeFloodlights, out Vector3[] positions, out Vector3[] directions)
+    {
+        positions = new[]
+        {
+            new Vector3(-48.22f, 42f, -71.46f),
+            new Vector3(-48.22f, 42f, 71.46f),
+            new Vector3(48.22f, 42f, -71.46f),
+            new Vector3(48.22f, 42f, 71.46f)
+        };
+        directions = new[]
+        {
+            new Vector3(0.7071f, 0f, 0.7071f),
+            new Vector3(0.7071f, 0f, -0.7071f),
+            new Vector3(-0.7071f, 0f, 0.7071f),
+            new Vector3(-0.7071f, 0f, -0.7071f)
+        };
+
+        if (arenaRoot == null || nativeFloodlights == null || nativeFloodlights.Length == 0)
+        {
+            return;
+        }
+
+        List<Light> sources = new List<Light>();
+        for (int i = 0; i < nativeFloodlights.Length; i++)
+        {
+            Light source = nativeFloodlights[i];
+            if (source != null && !sources.Contains(source))
+            {
+                sources.Add(source);
+            }
+        }
+
+        sources.Sort((left, right) =>
+        {
+            Vector3 leftPosition = left.transform.position;
+            Vector3 rightPosition = right.transform.position;
+            int xComparison = leftPosition.x.CompareTo(rightPosition.x);
+            return xComparison != 0 ? xComparison : leftPosition.z.CompareTo(rightPosition.z);
+        });
+
+        int count = Mathf.Min(positions.Length, sources.Count);
+        for (int i = 0; i < count; i++)
+        {
+            Light source = sources[i];
+            positions[i] = arenaRoot.transform.InverseTransformPoint(source.transform.position);
+            Vector3 localDirection = arenaRoot.transform.InverseTransformDirection(source.transform.forward).normalized;
+            if (localDirection.sqrMagnitude > 0.001f)
+            {
+                directions[i] = localDirection;
+            }
+        }
+
+        if (count > 0)
+        {
+            Debug.Log("[SydneyTLANArena] Runtime floodlight transforms resolved from the Sydney prefab's native lamp sources.");
+        }
     }
 
     private static Texture2D CreateFloodlightCookie()
@@ -1874,6 +1931,87 @@ internal static class TlanSydneyAdapter
         return config;
     }
 
+    internal static bool TryGetIndependentFloodlightState(GameObject arenaRoot, out bool enabled, out float baseIntensity, out Color colour)
+    {
+        TlanMenuRenderConfig config = _runtimeLightingConfig ?? (_runtimeLightingConfig = LoadTlanMenuRenderConfig());
+        baseIntensity = Mathf.Max(0f, config.floodlightIntensity);
+        colour = config.floodlightColorEnabled ? config.floodlightColor : Color.white;
+
+        if (!config.floodlightsEnabled)
+        {
+            enabled = config.floodlightOffIntensity > 0.01f;
+            baseIntensity = Mathf.Max(0f, config.floodlightOffIntensity);
+            return true;
+        }
+
+        float sunElevation;
+        if (TryGetSunElevation(arenaRoot, out sunElevation))
+        {
+            enabled = sunElevation <= config.floodlightOnElevationDeg;
+            return true;
+        }
+
+        // Compatibility fallback for TLAN builds that expose neither active
+        // native lamps nor a usable directional sun. Manual settings remain
+        // deterministic; real-time settings use the local clock, matching
+        // TLAN's default host-local fallback.
+        if (string.Equals(config.timeSource, "Manual", StringComparison.OrdinalIgnoreCase))
+        {
+            enabled = config.GetNightFactor() > 0.01f;
+        }
+        else
+        {
+            float hour = (float)DateTime.Now.TimeOfDay.TotalHours;
+            enabled = hour < 6f || hour >= 18f;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetSunElevation(GameObject arenaRoot, out float elevation)
+    {
+        Light bestSun = RenderSettings.sun;
+        if (bestSun == null || bestSun.type != LightType.Directional)
+        {
+            if (Time.unscaledTime >= _nextRuntimeSunSearch || _runtimeSun == null)
+            {
+                _runtimeSun = null;
+                Light[] sceneLights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+                float bestIntensity = -1f;
+                for (int i = 0; i < sceneLights.Length; i++)
+                {
+                    Light candidate = sceneLights[i];
+                    if (candidate == null || candidate.type != LightType.Directional ||
+                        (arenaRoot != null && candidate.transform.IsChildOf(arenaRoot.transform)) ||
+                        candidate.gameObject.name.IndexOf("Flood", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        continue;
+                    }
+
+                    if (candidate.intensity > bestIntensity)
+                    {
+                        _runtimeSun = candidate;
+                        bestIntensity = candidate.intensity;
+                    }
+                }
+
+                _nextRuntimeSunSearch = Time.unscaledTime + 1f;
+            }
+
+            bestSun = _runtimeSun;
+        }
+
+        if (bestSun == null)
+        {
+            elevation = 0f;
+            return false;
+        }
+
+        Vector3 lightDirection = -bestSun.transform.forward;
+        elevation = Mathf.Asin(Mathf.Clamp(lightDirection.y, -1f, 1f)) * Mathf.Rad2Deg;
+        return true;
+    }
+
     private static bool IsSydneySkyRenderer(Renderer renderer)
     {
         string objectName = renderer.gameObject.name;
@@ -1981,6 +2119,9 @@ internal static class TlanSydneyAdapter
         _bundleFolderProperty = null;
         _arenaRootProperty = null;
         _adapterConfig = null;
+        _runtimeLightingConfig = null;
+        _runtimeSun = null;
+        _nextRuntimeSunSearch = 0f;
         _sydneyPrefab = null;
         _settingsToggleAdded = false;
         _settingsPatchInstalled = false;
@@ -2009,6 +2150,7 @@ internal sealed class SydneyAdapterConfig
 internal sealed class TlanMenuRenderConfig
 {
     public float manualHour = 0f;
+    public string timeSource = "Manual";
     public float sunIntensityScale = 1.4566f;
     public bool floodlightsEnabled = true;
     public float floodlightIntensity = 401.7f;
@@ -2027,6 +2169,8 @@ internal sealed class TlanMenuRenderConfig
     public float fogNightEnd = 200f;
     public float fogDayStart = 400f;
     public float fogDayEnd = 1400f;
+    public float floodlightOnElevationDeg = 3f;
+    public float floodlightHysteresisDeg = 2f;
     public Color fogNightColor = new Color(0.1f, 0.13f, 0.2f, 1f);
     public Color fogDayColor = new Color(0.68f, 0.74f, 0.82f, 1f);
 
@@ -2288,14 +2432,16 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
     private float _fallbackBaseIntensity;
     private int _renderingLayerMask = -1;
     private bool _shadowsEnabled = true;
+    private GameObject _arenaRoot;
 
-    public void Initialize(Light[] lights, float multiplier, float maximum, Light[] nativeFloodlights, float fallbackBaseIntensity)
+    public void Initialize(Light[] lights, float multiplier, float maximum, Light[] nativeFloodlights, float fallbackBaseIntensity, GameObject arenaRoot)
     {
         _lights = lights;
         _nativeFloodlights = nativeFloodlights;
         _multiplier = multiplier;
         _maximum = maximum;
         _fallbackBaseIntensity = Mathf.Max(0f, fallbackBaseIntensity);
+        _arenaRoot = arenaRoot;
         _baseIntensities = new float[lights.Length];
         _lastAppliedIntensities = new float[lights.Length];
         for (int i = 0; i < lights.Length; i++)
@@ -2395,6 +2541,23 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
             }
         }
 
+        bool independentStateAvailable = TlanSydneyAdapter.TryGetIndependentFloodlightState(
+            _arenaRoot,
+            out bool independentLightsOn,
+            out float independentIntensity,
+            out Color independentColor);
+
+        // Native TLAN lamps remain the preferred source when they are active,
+        // preserving the original appearance. If a TLAN build fails to attach
+        // those lamps, Companion owns the same day/night decision and keeps the
+        // Sydney visuals alive instead of inheriting an uninitialized zero.
+        if (!nativeLightsOn && independentStateAvailable)
+        {
+            nativeLightsOn = independentLightsOn;
+            nativeIntensity = independentLightsOn ? independentIntensity : 0f;
+            nativeColor = independentColor;
+        }
+
         for (int i = 0; i < _lights.Length; i++)
         {
             Light light = _lights[i];
@@ -2403,7 +2566,7 @@ internal sealed class SydneyFloodlightIntensity : MonoBehaviour
                 continue;
             }
 
-            if (nativeLightsAvailable)
+            if (nativeLightsAvailable || independentStateAvailable)
             {
                 _baseIntensities[i] = nativeLightsOn ? nativeIntensity : 0f;
                 light.color = nativeColor;
